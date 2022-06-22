@@ -1,0 +1,9 @@
+{
+    "IsEncrypted": false,
+    "Values": {
+        "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+        "FUNCTIONS_WORKER_RUNTIME": "dotnet",
+        "TableStorageAccountName": "str65aio5jr75ws",
+        "KeyVaultName": "kv-nfyjfgvxl4n4a"
+    }
+}

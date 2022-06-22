@@ -1,0 +1,13 @@
+{
+  "name": "azurite",
+  "version": "1.0.0",
+  "description": "Helper project to start Azurite",
+  "scripts": {
+    "start": "azurite --location ./data"
+  },
+  "author": "Rainer Stropek",
+  "license": "MIT",
+  "devDependencies": {
+    "azurite": "^3.17.1"
+  }
+}

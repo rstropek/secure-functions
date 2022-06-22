@@ -1,0 +1,10 @@
+#@host = http://localhost:7071
+@host = https://func-nfyjfgvxl4n4a.azurewebsites.net
+
+###
+GET {{host}}/Ping
+Accept: application/json
+
+###
+GET {{host}}/healthy
+Accept: application/json
