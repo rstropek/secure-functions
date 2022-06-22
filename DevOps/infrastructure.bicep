@@ -32,7 +32,6 @@ var names = {
   functionStorage: 'st${uniqueString('${baseName}-functionstorage')}'
   appInsights: 'appi-${uniqueString('${baseName}')}'
   logAnalytics: 'log-${uniqueString('${baseName}')}'
-  uami: 'id-${uniqueString('${baseName}-function')}'
   functionApp: 'func-${uniqueString('${baseName}')}'
   dataStorage: 'st${uniqueString('${baseName}-users')}'
   secretsVault: 'kv-${uniqueString('${baseName}')}'
@@ -163,30 +162,19 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
   }
 }
 
-// create user assigned managed identity
-resource uami 'Microsoft.ManagedIdentity/userAssignedIdentities@2018-11-30' = {
-  name: names.uami
-  location: location
-  tags: tags
-}
-
 resource functionApp 'Microsoft.Web/sites@2021-03-01' = {
   name: names.functionApp
   location: location
   tags: tags
   kind: 'functionapp'
   identity: {
-    type: 'UserAssigned'
-    userAssignedIdentities: {
-      '${uami.id}': {}
-    }
+    type: 'SystemAssigned'
   }
   properties: {
     enabled: true
     httpsOnly: true
     serverFarmId: appServicePlan.id
     clientAffinityEnabled: true
-    keyVaultReferenceIdentity: uami.id
     siteConfig: {
       vnetRouteAllEnabled: true
       ftpsState: 'Disabled'
@@ -270,10 +258,10 @@ resource tablePe 'Microsoft.Network/privateEndpoints@2020-06-01' = {
 }
 
 resource functionAppTableStorageAssignment 'Microsoft.Authorization/roleAssignments@2020-04-01-preview' = {
-  name: guid(dataStorage.id, uami.id)
+  name: guid(dataStorage.id, functionApp.id)
   scope: dataStorage
   properties: {
-    principalId: uami.properties.principalId
+    principalId: functionApp.identity.principalId
     roleDefinitionId: resourceId('Microsoft.Authorization/roleDefinitions', roleIds.StorageTableDataContributor)
     // Note also bug/limitation https://github.com/Azure/bicep/issues/2031#issuecomment-816743989
     principalType: 'ServicePrincipal'
@@ -317,11 +305,11 @@ resource keyvault 'Microsoft.KeyVault/vaults@2021-11-01-preview' = {
 }
 
 resource functionAppKeyVaultAssignment 'Microsoft.Authorization/roleAssignments@2020-04-01-preview' = {
-  name: guid(keyvault.id, uami.id)
+  name: guid(keyvault.id, functionApp.id)
   scope: keyvault
   properties: {
     //principalId: functionApp.identity.principalId
-    principalId: uami.properties.principalId
+    principalId: functionApp.identity.principalId
     roleDefinitionId: resourceId('Microsoft.Authorization/roleDefinitions', roleIds.KeyVaultSecretsUser)
     // Note also bug/limitation https://github.com/Azure/bicep/issues/2031#issuecomment-816743989
     principalType: 'ServicePrincipal'
