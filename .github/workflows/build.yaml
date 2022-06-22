@@ -41,9 +41,7 @@ jobs:
             --name Deployment-dev-$(date +"%Y-%m-%dT%H-%M-%S") \
             --template-file infrastructure.bicep \
             --parameters \
-                stage=dev \
-                pipResourceGroup=${{ env.publicIpResourceGroup }} \
-                adminPrincipalId=${{ needs.init.outputs.devUserGroup }}
+                stage=dev
 
   build:
     runs-on: ubuntu-latest
