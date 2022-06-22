@@ -42,10 +42,9 @@ public class Health
         ILogger log)
     {
         var health = new HealthCheckResponse();
-        //health = await CheckTableHealth(log, health);
+        health = await CheckTableHealth(log, health);
         health = await CheckKeyVaultHealth(log, health);
         //health = health with { TableStorageIp = dns.ResolveDnsName($"{Environment.GetEnvironmentVariable("TableStorageAccountName")}.table.core.windows.net") };
-        health = health with { TableStorageIp = $"{Environment.GetEnvironmentVariable("TableStorageAccountName")}.table.core.windows.net" };
         return health.IsTotallyHealthy switch 
         {
             true => new OkObjectResult(health),
