@@ -35,8 +35,12 @@ var names = {
   functionApp: 'func-${uniqueString('${baseName}')}'
   dataStorage: 'st${uniqueString('${baseName}-users')}'
   secretsVault: 'kv-${uniqueString('${baseName}')}'
-  dnsZoneTable: 'privatelink.table.${environment().suffixes.storage}' // privatelink.table.core.windows.net
+  dnsZoneTable: 'privatelink.table.${environment().suffixes.storage}'
+  dnsZoneKv: 'privatelink.vaultcore.azure.net'
   peTable: 'pe-${uniqueString('${baseName}-data')}'
+  peTableDnsGroupName: 'tablednsgroupname'
+  peVault: 'pe-${uniqueString('${baseName}-vault')}'
+  peVaultDnsGroupName: 'vaultdnsgroupname'
 }
 var tags = {
   Project: projectName
@@ -78,8 +82,8 @@ resource apiVnet 'Microsoft.Network/virtualNetworks@2021-08-01' = {
         name: 'privateendpoints'
         properties: {
           addressPrefix: '10.0.11.0/24'
-          privateEndpointNetworkPolicies: 'Enabled'
-          privateLinkServiceNetworkPolicies: 'Enabled'
+          privateEndpointNetworkPolicies: 'Disabled'
+          privateLinkServiceNetworkPolicies: 'Disabled'
         }
       }
       {
@@ -108,7 +112,7 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2020-06-01' = {
     name: appServicePlanSku
   }
   properties: {
-    reserved: true
+    reserved: true // Required for Linux app service plans
   }
   kind: 'linux'
 }
@@ -235,10 +239,20 @@ resource dataStorage 'Microsoft.Storage/storageAccounts@2021-09-01' = {
   }
 }
 
+module stgModule 'storage.bicep' = {
+  name: 'stdemostorageasdfasdf'
+  scope: resourceGroup()
+  params: {
+    storageName: 'stdemostorageasdfasdf'
+    location: location
+    tags: union(tags, tagsCustomerData)
+  }
+}
+
 resource tablePe 'Microsoft.Network/privateEndpoints@2020-06-01' = {
   name: names.peTable
   location: location
-  tags: tags
+  tags: union(tags, { Type: 'Table' })
   properties: {
     subnet: {
       id: apiVnet.properties.subnets[1].id
@@ -254,6 +268,20 @@ resource tablePe 'Microsoft.Network/privateEndpoints@2020-06-01' = {
         }
       }
     ]
+  }
+
+  resource pvtEndpointDnsGroup 'privateDnsZoneGroups@2021-05-01' = {
+    name: names.peTableDnsGroupName
+    properties: {
+      privateDnsZoneConfigs: [
+        {
+          name: guid(names.peTableDnsGroupName, 'config')
+          properties: {
+            privateDnsZoneId: tableDnsZone.id
+          }
+        }
+      ]
+    }
   }
 }
 
@@ -304,6 +332,43 @@ resource keyvault 'Microsoft.KeyVault/vaults@2021-11-01-preview' = {
   }
 }
 
+resource keyvaultPe 'Microsoft.Network/privateEndpoints@2020-06-01' = {
+  name: names.peVault
+  location: location
+  tags: union(tags, { Type: 'KeyVault' })
+  properties: {
+    subnet: {
+      id: apiVnet.properties.subnets[1].id
+    }
+    privateLinkServiceConnections: [
+      {
+        name: names.peVault
+        properties: {
+          privateLinkServiceId: keyvault.id
+          groupIds: [
+            'vault'
+          ]
+        }
+      }
+    ]
+  }
+  
+  resource pvtEndpointDnsGroup 'privateDnsZoneGroups@2021-05-01' = {
+    name: names.peVaultDnsGroupName
+    properties: {
+      privateDnsZoneConfigs: [
+        {
+          name: guid(names.peTableDnsGroupName, 'config')
+          properties: {
+            privateDnsZoneId: vaultDnsZone.id
+          }
+        }
+      ]
+    }
+  }
+
+}
+
 resource functionAppKeyVaultAssignment 'Microsoft.Authorization/roleAssignments@2020-04-01-preview' = {
   name: guid(keyvault.id, functionApp.id)
   scope: keyvault
@@ -326,13 +391,30 @@ resource adminKeyVaultAssignment 'Microsoft.Authorization/roleAssignments@2020-0
   }
 }
 
-resource dnsZone 'Microsoft.Network/privateDnsZones@2020-01-01' = {
+resource tableDnsZone 'Microsoft.Network/privateDnsZones@2020-01-01' = {
   name: names.dnsZoneTable
   location: 'global'
   properties: { }
 
   resource dnsZoneLink 'virtualNetworkLinks@2020-01-01' = {
     name: names.dnsZoneTable
+    location: 'global'
+    properties: {
+      registrationEnabled: false
+      virtualNetwork: {
+        id: apiVnet.id
+      }
+    }
+  }
+}
+
+resource vaultDnsZone 'Microsoft.Network/privateDnsZones@2020-01-01' = {
+  name: names.dnsZoneKv
+  location: 'global'
+  properties: { }
+
+  resource dnsZoneLink 'virtualNetworkLinks@2020-01-01' = {
+    name: names.dnsZoneKv
     location: 'global'
     properties: {
       registrationEnabled: false

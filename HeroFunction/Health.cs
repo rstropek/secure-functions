@@ -21,9 +21,10 @@ public class Health
         bool IsAspNetCoreHealthy,
         bool IsTableStorageHealthy,
         bool IsKeyVaultHealthy,
-        string TableStorageIp)
+        string TableStorageIp,
+        string KeyVaultIp)
     {
-        public HealthCheckResponse() : this(true, false, false, string.Empty) { }
+        public HealthCheckResponse() : this(true, false, false, string.Empty, string.Empty) { }
 
         public bool IsTotallyHealthy => IsAspNetCoreHealthy && IsTableStorageHealthy && IsKeyVaultHealthy;
     }
@@ -42,9 +43,36 @@ public class Health
         ILogger log)
     {
         var health = new HealthCheckResponse();
-        health = await CheckTableHealth(log, health);
-        health = await CheckKeyVaultHealth(log, health);
-        //health = health with { TableStorageIp = dns.ResolveDnsName($"{Environment.GetEnvironmentVariable("TableStorageAccountName")}.table.core.windows.net") };
+        try
+        {
+            health = await CheckTableHealth(log, health);
+            health = await CheckKeyVaultHealth(log, health);
+        }
+        catch (Exception ex)
+        {
+            log.LogError(ex, "Health check failed");
+        }
+
+        try
+        {
+            health = health with { TableStorageIp = dns.ResolveDnsName($"{Environment.GetEnvironmentVariable("TableStorageAccountName")}.table.core.windows.net") };
+        }
+        catch (Exception ex)
+        {
+            log.LogError(ex, "Health check failed");
+            health = health with { TableStorageIp = "Unknown" };
+        }
+
+        try
+        {
+            health = health with { KeyVaultIp = dns.ResolveDnsName($"{Environment.GetEnvironmentVariable("KeyVaultName")}.vault.azure.net") };
+        }
+        catch (Exception ex)
+        {
+            log.LogError(ex, "Health check failed");
+            health = health with { KeyVaultIp = "Unknown" };
+        }
+
         return health.IsTotallyHealthy switch 
         {
             true => new OkObjectResult(health),

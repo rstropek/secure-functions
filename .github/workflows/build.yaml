@@ -68,7 +68,7 @@ jobs:
       run: dotnet restore
 
     - name: 'Build'
-      run: dotnet build --configuration ${{ needs.init.outputs.configuration }}
+      run: dotnet build
 
     - name: 'Azure Login'
       uses: azure/login@v1
@@ -87,4 +87,5 @@ jobs:
 
     - name: 'Publish'
       working-directory: HeroApi
-      run: func azure functionapp publish func-4oppsuzf5z3zy
+      run: func azure functionapp publish func-nfyjfgvxl4n4a
+      
